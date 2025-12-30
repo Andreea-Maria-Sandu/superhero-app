@@ -11,3 +11,8 @@ __pycache__/
 # editor
 .vscode/
 .idea/
+<<<<<<< HEAD
+=======
+
+superheros_db/superheros.sql
+>>>>>>> 5a8b7ba (Initial commit: FastApi, backend, frontend, auth, CRUD)

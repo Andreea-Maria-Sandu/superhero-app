@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ro">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Detaliu</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 16px; }
+        img { max-width: 320px; width: 100%; background: #f7f7f7; border-radius: 10px; }
+        /* pre { background: #111; color: #eee; padding: 12px; border-radius: 10px; overflow: auto; }*/
+        a { display:inline-block; margin-bottom: 12px; }
+      .work {
+  background: white;
+  color: #000;
+  padding: 10px 12px;
+  line-height: 1.6;
+}
+
+.work div {
+  margin-bottom: 8px;
+}
+
+    </style>
+</head>
+<body>
+<a href="index.html">← Înapoi la listă</a>
+<h2 id="name"></h2>
+<img id="img" alt=""/>
+<h3>Work</h3>
+<div id="work" class="work"></div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const token = localStorage.getItem("token");
+if (!token) window.location.href = "login.html";
+
+async function apiFetch(url) {
+  return fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+}
+const id = new URLSearchParams(window.location.search).get("id");
+
+async function load() {
+  const res = await apiFetch(`${API}/items/${id}`);
+  const item = await res.json();
+
+  document.getElementById("name").textContent = item.name || "(no name)";
+  document.getElementById("img").src = item.image || "";
+  document.getElementById("img").alt = item.name || "Unknown";
+
+  const workContainer = document.getElementById("work");
+
+  let base = "-";
+  let occupation = "-";
+
+  if (item.work && typeof item.work === "object") {
+    base = item.work.base || "-";
+    occupation = item.work.occupation || "-";
+  }
+
+  workContainer.innerHTML = `
+    <div><b>Base:</b> ${base}</div>
+    <div><b>Occupation:</b> ${occupation}</div>
+  `;
+}
+
+load();
+</script>
+
+
+</body>
+</html>

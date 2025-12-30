@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <title>Insert Superhero</title>
+  <style>
+    body { font-family: Arial; margin: 16px; }
+    input, textarea { width: 420px; max-width: 95%; padding: 8px; margin: 8px 0; }
+    button { padding: 8px 12px; }
+    .msg { margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+<a href="index.html">← Înapoi</a>
+<h2>Insert Superhero</h2>
+
+<input id="name" placeholder="Name" />
+<input id="image" placeholder="Image (Data URI / Base64)" />
+<input id="base" placeholder="Work base" />
+<input id="occupation" placeholder="Work occupation" />
+
+<button id="save">Save</button>
+<div id="msg" class="msg"></div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+
+if (!token) window.location.href = "login.html";
+if (role !== "admin") {
+  document.getElementById("msg").textContent = "Doar admin poate insera.";
+  document.getElementById("save").disabled = true;
+}
+
+document.getElementById("save").onclick = async () => {
+  const payload = {
+    name: document.getElementById("name").value,
+    image: document.getElementById("image").value,
+    work: {
+      base: document.getElementById("base").value,
+      occupation: document.getElementById("occupation").value
+    }
+  };
+
+  const res = await fetch(`${API}/items`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const msg = document.getElementById("msg");
+  if (!res.ok) {
+    msg.style.color = "red";
+    msg.textContent = "Eroare la insert (verifică backend / token).";
+    return;
+  }
+
+  msg.style.color = "green";
+  msg.textContent = "Inserat cu succes!";
+  setTimeout(() => window.location.href = "index.html", 600);
+};
+</script>
+
+</body>
+</html>

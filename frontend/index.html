@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ro">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Superheroes</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 16px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+        .card { border: 1px solid #ddd; border-radius: 10px; padding: 10px; cursor: pointer; }
+        .card img { width: 100%; height: 220px; object-fit: contain; background: #f7f7f7; border-radius: 8px; }
+        .name { margin-top: 8px; font-weight: 600; }
+        .actions { display:flex; gap:8px; margin-top:10px; }
+        .btnDanger { border:1px solid #d33; color:#d33; background:white; padding:6px 10px; border-radius:6px; cursor:pointer; }
+        .btnPrimary { border:1px solid #007bff; color:#007bff; background:white; padding:6px 10px; border-radius:6px; cursor:pointer; }
+        .btnDanger:hover { background:#ffeaea; }
+        .btnPrimary:hover { background:#eaf2ff; }
+        /* butoane de filtrare */
+.fbtn, .obtn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
+.fbtn:hover, .obtn:hover {
+  background: #eaeaea;
+}
+
+/* butoane CLEAR */
+.fbtn[data-clear], .obtn[data-clear] {
+  background: white;
+  border: 1px solid #d33;
+  color: #d33;
+  font-weight: 600;
+}
+
+.fbtn[data-clear]:hover, .obtn[data-clear]:hover {
+  background: #ffeaea;
+}
+/* buton activ */
+.fbtn.active, .obtn.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+    </style>
+</head>
+<body><h2>Superheroes</h2>
+
+<div style="display:flex; gap:10px; align-items:center; margin-bottom:12px;">
+    <button id="prev">Prev</button>
+    <span>Pagina: <b id="page">1</b></span>
+    <button id="next">Next</button>
+    <button id="logout" style="margin-left:16px;">Logout</button>
+    <button id="btnInsert" >+ Insert</button>
+    <span style="margin-left:16px;">Per pagină:</span>
+    <select id="pageSize">
+        <option value="10">10</option>
+        <option value="20" selected>20</option>
+        <option value="30">30</option>
+        <option value="50">50</option>
+    </select>
+</div>
+
+<!-- SEARCH -->
+<div style="margin: 12px 0;">
+    <input id="search" type="text" placeholder="Caută după nume / base / occupation..."
+           style="width: 360px; max-width: 90%; padding: 8px; border: 1px solid #ccc; border-radius: 8px;"/>
+    <button id="clearSearch" style="padding: 8px 10px; margin-left: 6px;">Clear</button>
+</div>
+
+<!-- FILTRE -->
+<div style="margin: 10px 0; display:flex; gap:8px; flex-wrap: wrap;">
+    <b>Filter Base:</b>
+    <button class="fbtn" data-base="Japan">Japan</button>
+    <button class="fbtn" data-base="U.S.">U.S.</button>
+    <button class="fbtn" data-base="Germany">Germany</button>
+    <button class="fbtn" data-clear="1">Clear base</button>
+</div>
+
+<div style="margin: 10px 0; display:flex; gap:8px; flex-wrap: wrap;">
+    <b>Filter Occupation:</b>
+    <button class="obtn" data-occ="mercenary">mercenary</button>
+    <button class="obtn" data-occ="soldier">soldier</button>
+    <button class="obtn" data-occ="inventor">inventor</button>
+    <button class="obtn" data-clear="1">Clear occupation</button>
+
+</div>
+<div id="message" style="margin: 10px 0; color: #555;"></div>
+
+<div id="grid" class="grid"></div>
+
+
+<script>
+    const API = "http://127.0.0.1:8000";
+
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role") || "user";
+
+if (!token) window.location.href = "login.html";
+
+// Logout (o singură dată)
+document.getElementById("logout").onclick = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("username");
+  window.location.href = "login.html";
+};
+
+// Insert doar pentru admin (o singură dată)
+if (role === "admin") {
+  document.getElementById("btnInsert").style.display = "inline-block";
+}
+
+const btnInsert = document.getElementById("btnInsert");
+
+if (role === "admin") {
+  btnInsert.style.display = "inline-block";
+  btnInsert.onclick = () => window.location.href = "insert.html";
+} else {
+  btnInsert.style.display = "none";
+}
+
+
+    let search = "";
+    let baseFilter = "";
+    let occFilter = "";
+    let page = 1;
+    let pageSize = 20;
+    let t = null;
+
+async function apiFetch(url, options = {}) {
+  options.headers = {
+    ...(options.headers || {}),
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  return fetch(url, options);
+}
+
+    async function load() {
+      document.getElementById("page").textContent = page;
+
+      const url = `${API}/items?page=${page}&page_size=${pageSize}`
+    + `&q=${encodeURIComponent(search)}`
+    + `&base=${encodeURIComponent(baseFilter)}`
+    + `&occupation=${encodeURIComponent(occFilter)}`;
+      const res = await apiFetch(url);
+      const data = await res.json();
+
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "";
+
+      const msg = document.getElementById("message");
+      msg.textContent = "";   // <-- reset mereu
+
+      if (data.items.length === 0) {
+  msg.textContent = "Nu există supereroi care să corespundă filtrului selectat.";
+  return;
+}
+
+for (const item of data.items) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.onclick = () => window.location.href = `detail.html?id=${item.id}`;
+
+  const img = document.createElement("img");
+  img.src = item.image || "";
+  img.alt = item.name || "Unknown";
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = item.name || "(no name)";
+
+  card.appendChild(img);
+  card.appendChild(name);
+  if (role === "admin") {
+  const actions = document.createElement("div");
+  actions.className = "actions";
+
+  const btnUpdate = document.createElement("button");
+  btnUpdate.className = "btnPrimary";
+  btnUpdate.textContent = "Update";
+  btnUpdate.onclick = (e) => {
+    e.stopPropagation(); // să nu declanșeze click-ul pe card (care duce la detail)
+    window.location.href = `update.html?id=${item.id}`;
+  };
+
+  const btnDelete = document.createElement("button");
+  btnDelete.className = "btnDanger";
+  btnDelete.textContent = "Delete";
+  btnDelete.onclick = async (e) => {
+    e.stopPropagation();
+
+    if (!confirm(`Sigur ștergi "${item.name}" ?`)) return;
+
+    const res = await apiFetch(`${API}/items/${item.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      alert("Eroare la ștergere!");
+      return;
+    }
+    load(); // reîncarcă lista
+  };
+
+  actions.appendChild(btnUpdate);
+  actions.appendChild(btnDelete);
+  card.appendChild(actions);
+}
+
+  grid.appendChild(card);
+}
+
+
+
+      // dacă ai depășit ultima pagină
+      if (data.items.length === 0 && page > 1) {
+        page -= 1;
+        load();
+      }
+    }
+
+    // SEARCH (o singură dată)
+    document.getElementById("search").addEventListener("input", (e) => {
+      search = e.target.value;
+      page = 1;
+
+      clearTimeout(t);
+      t = setTimeout(load, 300);
+    });
+
+    document.querySelectorAll(".fbtn").forEach(btn => {
+  btn.onclick = () => {
+    // șterge active de pe toate fbtn
+    document.querySelectorAll(".fbtn").forEach(b => b.classList.remove("active"));
+
+    if (btn.dataset.clear) {
+      baseFilter = "";
+    } else {
+      baseFilter = btn.dataset.base || "";
+      btn.classList.add("active"); // marchează ca activ
+    }
+
+    btnUpdate.onclick = (e) => {
+  e.stopPropagation();
+  window.location.href = `update.html?id=${item.id}`;
+};
+
+    page = 1;
+    load();
+  };
+});
+
+
+ document.querySelectorAll(".obtn").forEach(btn => {
+  btn.onclick = () => {
+    // șterge active de pe toate obtn
+    document.querySelectorAll(".obtn").forEach(b => b.classList.remove("active"));
+
+    if (btn.dataset.clear) {
+      occFilter = "";
+    } else {
+      occFilter = btn.dataset.occ || "";
+      btn.classList.add("active"); // marchează ca activ
+    }
+
+    page = 1;
+    load();
+  };
+});
+
+    document.getElementById("clearSearch").onclick = () => {
+      document.getElementById("search").value = "";
+      search = "";
+      page = 1;
+      load();
+    };
+
+    // PAGINARE
+    document.getElementById("prev").onclick = () => {
+      if (page > 1) { page -= 1; load(); }
+    };
+
+    document.getElementById("next").onclick = () => {
+      page += 1;
+      load();
+    };
+
+    document.getElementById("pageSize").onchange = (e) => {
+      pageSize = parseInt(e.target.value, 10);
+      page = 1;
+      load();
+    };
+
+    load();
+</script>
+</body>
+</html>

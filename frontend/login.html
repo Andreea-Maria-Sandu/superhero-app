@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <title>Login</title>
+  <style>
+    body { font-family: Arial; margin: 40px; }
+    input { display:block; margin:10px 0; padding:8px; width:250px; }
+    button { padding:8px 12px; margin-right:6px; }
+    .msg { margin-top:10px; color:red; }
+  </style>
+</head>
+<body>
+
+<h2 id="title">Login</h2>
+
+<input id="username" placeholder="Username" />
+<input id="password" type="password" placeholder="Password" />
+
+<button id="btnLogin">Login</button>
+<button id="btnRegister">Register</button>
+
+<div id="msg" class="msg"></div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+
+const msg = document.getElementById("msg");
+
+document.getElementById("btnLogin").onclick = async () => {
+  msg.textContent = "";
+
+  const form = new URLSearchParams();
+  form.append("username", username.value);
+  form.append("password", password.value);
+
+  const res = await fetch(`${API}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+
+  if (!res.ok) {
+    msg.textContent = "Login eșuat";
+    return;
+  }
+
+  const data = await res.json();
+  localStorage.setItem("token", data.access_token);
+  localStorage.setItem("role", data.role);
+
+  window.location.href = "index.html";
+};
+
+document.getElementById("btnRegister").onclick = async () => {
+  msg.textContent = "";
+
+  const res = await fetch(`${API}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username: username.value,
+      password: password.value
+    })
+  });
+
+  if (!res.ok) {
+    msg.textContent = "User deja existent";
+    return;
+  }
+
+  msg.style.color = "green";
+  msg.textContent = "Cont creat. Te poți loga.";
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Update Superhero</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; }
+    a { display:inline-block; margin-bottom: 12px; }
+    .row { margin: 10px 0; }
+    input, textarea {
+      width: 560px; max-width: 95%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    button {
+      padding: 10px 14px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #f7f7f7;
+      cursor: pointer;
+    }
+    button:hover { background:#eee; }
+    .msg { margin-top: 12px; }
+    .err { color:#b00020; }
+    .ok { color:#0a7a0a; }
+  </style>
+</head>
+<body>
+
+<a href="index.html">← Înapoi</a>
+<h2>Update Superhero</h2>
+
+<div class="row">
+  <input id="name" placeholder="Name" />
+</div>
+
+<div class="row">
+  <textarea id="image" placeholder="Image (Data URI / Base64)"></textarea>
+</div>
+
+<div class="row">
+  <input id="base" placeholder="Work base" />
+</div>
+
+<div class="row">
+  <input id="occupation" placeholder="Work occupation" />
+</div>
+
+<div class="row">
+  <button id="save">Save</button>
+</div>
+
+<div id="msg" class="msg"></div>
+
+<script>
+  const API = "http://127.0.0.1:8000";
+
+  // auth
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role") || "user";
+  if (!token) window.location.href = "login.html";
+  if (role !== "admin") {
+    document.getElementById("msg").innerHTML = `<span class="err">Doar admin poate edita.</span>`;
+    document.getElementById("save").disabled = true;
+  }
+
+  // id din query string
+  const id = new URLSearchParams(window.location.search).get("id");
+  if (!id) {
+    document.getElementById("msg").innerHTML = `<span class="err">Lipsește parametrul ?id=...</span>`;
+    document.getElementById("save").disabled = true;
+  }
+
+  async function apiFetch(url, options = {}) {
+    const headers = options.headers || {};
+    headers["Authorization"] = `Bearer ${token}`;
+    return fetch(url, { ...options, headers });
+  }
+
+  function setMsg(text, ok = false) {
+    const el = document.getElementById("msg");
+    el.innerHTML = `<span class="${ok ? "ok" : "err"}">${text}</span>`;
+  }
+
+  // încarcă datele curente
+  async function load() {
+    try {
+      const res = await apiFetch(`${API}/items/${id}`);
+      if (!res.ok) {
+        const t = await res.text();
+        setMsg(`Eroare la încărcare: ${res.status} ${t}`);
+        return;
+      }
+      const item = await res.json();
+
+      document.getElementById("name").value = item.name || "";
+      document.getElementById("image").value = item.image || "";
+
+      const w = item.work || {};
+      document.getElementById("base").value = w.base || "";
+      document.getElementById("occupation").value = w.occupation || "";
+
+    } catch (e) {
+      setMsg("Eroare: " + e.message);
+    }
+  }
+
+  // save (PUT)
+  document.getElementById("save").onclick = async () => {
+    if (role !== "admin") return;
+
+    const payload = {
+      name: document.getElementById("name").value.trim(),
+      image: document.getElementById("image").value.trim(),
+      work: {
+        base: document.getElementById("base").value.trim(),
+        occupation: document.getElementById("occupation").value.trim()
+      }
+    };
+
+    // validare minimă
+    if (!payload.name) { setMsg("Name este obligatoriu."); return; }
+
+    try {
+      const res = await apiFetch(`${API}/items/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const t = await res.text();
+        setMsg(`Update a eșuat: ${res.status} ${t}`);
+        return;
+      }
+
+      setMsg("Salvat cu succes!", true);
+      setTimeout(() => window.location.href = `detail.html?id=${id}`, 600);
+
+    } catch (e) {
+      setMsg("Eroare: " + e.message);
+    }
+  };
+
+  load();
+</script>
+</body>
+</html>

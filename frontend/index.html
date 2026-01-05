@@ -243,11 +243,6 @@ for (const item of data.items) {
       btn.classList.add("active"); // marchează ca activ
     }
 
-    btnUpdate.onclick = (e) => {
-  e.stopPropagation();
-  window.location.href = `update.html?id=${item.id}`;
-};
-
     page = 1;
     load();
   };
